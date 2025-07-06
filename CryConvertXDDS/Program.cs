@@ -38,7 +38,7 @@ namespace CryConvertXDDS
                         Directory.CreateDirectory(outDir);
                     try
                     {
-                        ProcessFile(file, outFile, noUntile: false, noEndianSwap: false);
+                        ProcessFile(file, outFile, noUnswizzle: false, noEndianSwap: false);
                     }
                     catch (Exception ex)
                     {
@@ -67,24 +67,24 @@ namespace CryConvertXDDS
                     outputPath = Path.Combine(inputDir, Path.GetFileName(inputPath));
                 }
                 Console.WriteLine($"[Info] Drag-and-drop mode: {inputPath} -> {outputPath}");
-                ProcessFile(inputPath, outputPath, noUntile: false, noEndianSwap: false);
+                ProcessFile(inputPath, outputPath, noUnswizzle: false, noEndianSwap: false);
                 return;
             }
 
             if (args.Length < 2)
             {
-                Console.WriteLine("Usage: CryConvertXDDS <input.dds> <output.dds> [--no-untile] [--no-endianswap]\n       or drag-and-drop a DDS file onto the program\n       or -f <folder> to batch convert all DDS files in a folder");
+                Console.WriteLine("Usage: CryConvertXDDS <input.dds> <output.dds> [-no-unswizzle] [-no-endianswap]\n       or drag-and-drop a DDS file onto the program\n       or -f <folder> to batch convert all DDS files in a folder");
                 return;
             }
 
             string inputPathArg = args[0];
             string outputPathArg = args[1];
-            bool noUntile = args.Length > 2 && (args[2] == "--no-untile" || args[2] == "-no-untile");
-            bool noEndianSwap = args.Length > 2 && (args.Contains("--no-endianswap") || args.Contains("-no-endianswap"));
+            bool noUnswizzle = args.Length > 2 && args[2] == "-no-unswizzle";
+            bool noEndianSwap = args.Length > 2 && (args.Contains("-no-endianswap"));
 
-            if (noUntile && noEndianSwap)
+            if (noUnswizzle && noEndianSwap)
             {
-                Console.WriteLine("[Error] Both untile and endian swap are skipped. Aborting.");
+                Console.WriteLine("[Error] Both unswizzle and endian swap are skipped. Aborting.");
                 return;
             }
 
@@ -94,10 +94,10 @@ namespace CryConvertXDDS
                 return;
             }
 
-            ProcessFile(inputPathArg, outputPathArg, noUntile, noEndianSwap);
+            ProcessFile(inputPathArg, outputPathArg, noUnswizzle, noEndianSwap);
         }
 
-        static void ProcessFile(string inputPath, string outputPath, bool noUntile, bool noEndianSwap)
+        static void ProcessFile(string inputPath, string outputPath, bool noUnswizzle, bool noEndianSwap)
         {
             byte[] ddsData = File.ReadAllBytes(inputPath);
 
@@ -136,8 +136,8 @@ namespace CryConvertXDDS
                 Array.Copy(imageData, offset, mipInput, 0, mipSize);
                 byte[] mipOutput = new byte[mipSize];
 
-                // For small mipmaps (<= 16x16 blocks, i.e. <= 64x64 pixels), skip untile (data is stored linear)
-                bool doUntile = !(blockWidth <= 16 && blockHeight <= 16) && !noUntile;
+                // For small mipmaps (<= 16x16 blocks, i.e. <= 64x64 pixels), skip unswizzle (data is stored linear)
+                bool doUntile = !(mipWidth <= 64 || mipHeight <= 64) && !noUnswizzle;
                 if (doUntile)
                 {
                     UntileXbox360(mipInput, mipOutput, blockWidth, blockHeight, bytesPerBlock);
